@@ -7,7 +7,7 @@ Telkit(utelkit.telkit.com) 자동 로그인 후 재고 데이터를 가져와
   playwright install --with-deps chromium
 
 환경변수로 로그인 정보를 넘겨서 실행합니다 (코드에 직접 아이디/비밀번호를 적지 마세요):
-  TELKIT_USER=아이디 TELKIT_PASS=비밀번호 python login_and_fetch.py
+  TELKIT_AGENT=매장아이디 TELKIT_USER=사용자아이디 TELKIT_PASS=비밀번호 python login_and_fetch.py
 """
 
 import os
@@ -27,10 +27,11 @@ INCLUDE_STATUS_CODES = {1}
 
 
 def get_session_cookies() -> dict:
+    agent = os.environ.get("TELKIT_AGENT")
     user = os.environ.get("TELKIT_USER")
     password = os.environ.get("TELKIT_PASS")
-    if not user or not password:
-        sys.exit("환경변수 TELKIT_USER / TELKIT_PASS 가 설정되어 있지 않습니다.")
+    if not agent or not user or not password:
+        sys.exit("환경변수 TELKIT_AGENT / TELKIT_USER / TELKIT_PASS 가 설정되어 있지 않습니다.")
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -41,7 +42,9 @@ def get_session_cookies() -> dict:
             page.goto(BASE_URL, wait_until="networkidle")
 
             page.wait_for_selector('input[type="password"]', timeout=30000)
-            page.fill('input[type="text"]', user)
+            text_inputs = page.locator('input[type="text"]')
+            text_inputs.nth(0).fill(agent)
+            text_inputs.nth(1).fill(user)
             page.fill('input[type="password"]', password)
             page.click("text=LOGIN")
 
