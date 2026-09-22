@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>메인텔레콤 재고 현황</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<style>
+  :root {
+    --bg: #F3F5F8;
+    --panel: #FFFFFF;
+    --line: #DCE2EA;
+    --ink: #1F2A44;
+    --ink-soft: #5B6478;
+    --accent: #1F2A44;
+    --amber: #B45309;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 24px;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+
+  header p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  #stale-warning {
+    display: none;
+    color: var(--amber);
+    font-weight: 600;
+  }
+
+  .totals {
+    text-align: right;
+  }
+
+  .totals .num {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .totals .label {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+
+  #search {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--panel);
+    margin-bottom: 32px;
+  }
+
+  #search:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .carrier-section {
+    margin-bottom: 36px;
+  }
+
+  .carrier-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex: none;
+  }
+
+  .model-row {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .model-row:first-of-type {
+    border-top: 1px solid var(--line);
+  }
+
+  .model-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    flex: 1 1 220px;
+    min-width: 0;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex: 2 1 320px;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 0.82rem;
+    background: var(--panel);
+    white-space: nowrap;
+  }
+
+  .chip .swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.15);
+    flex: none;
+  }
+
+  .chip .cnt {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-weight: 600;
+  }
+
+  .model-total {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-weight: 700;
+    font-size: 1.05rem;
+    flex: none;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  #empty {
+    display: none;
+    padding: 60px 0;
+    text-align: center;
+    color: var(--ink-soft);
+  }
+
+  footer {
+    margin-top: 40px;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  @media (max-width: 520px) {
+    .totals { text-align: left; }
+    header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>메인텔레콤 재고 현황</h1>
+        <p>업데이트: <span id="updated-at">-</span> <span id="stale-warning">(최신 정보가 아닐 수 있어요)</span></p>
+      </div>
+      <div class="totals">
+        <div class="num" id="total-count">-</div>
+        <div class="label">매장재고 합계</div>
+      </div>
+    </header>
+
+    <input id="search" type="text" placeholder="모델명으로 검색 (예: iPhone 17)">
+
+    <div id="sections"></div>
+    <div id="empty">검색 결과가 없습니다.</div>
+
+    <footer>메인텔레콤 · 이 페이지는 자동으로 갱신됩니다</footer>
+  </div>
+
+<script>
+const DATA_URL = 'stock_summary.json';
+
+const CARRIER_COLORS = {
+  'SKT': '#EA1C2D',
+  'KT': '#FF7C00',
+  'LGT': '#E6007E',
+  'LGU+': '#E6007E',
+};
+
+const COLOR_HEX = [
+  [/블랙|black/i, '#1C1C1E'],
+  [/화이트|white/i, '#FAFAFA'],
+  [/실버|silver/i, '#C7CBD1'],
+  [/골드|gold/i, '#D9C08B'],
+  [/로즈\s*골드|rose/i, '#E8B4B0'],
+  [/티타늄|titanium/i, '#8E8C88'],
+  [/그레이|그래이|gray|grey/i, '#8A8D93'],
+  [/네이비|navy/i, '#1F2A44'],
+  [/딥\s*블루|블루|blue/i, '#2C5FAD'],
+  [/스카이|sky/i, '#8FC1E3'],
+  [/그린|green/i, '#3E8E5A'],
+  [/퍼플|purple/i, '#7B5FA6'],
+  [/핑크|pink/i, '#E79BB5'],
+  [/옐로우|yellow/i, '#E8C547'],
+  [/레드|red/i, '#C0392B'],
+  [/오렌지|orange/i, '#E07B39'],
+];
+
+function colorToHex(name) {
+  for (const [re, hex] of COLOR_HEX) {
+    if (re.test(name)) return hex;
+  }
+  return '#9AA1AC';
+}
+
+function carrierDot(name) {
+  return CARRIER_COLORS[name] || '#9AA1AC';
+}
+
+function groupBy(items, keyFn) {
+  const map = new Map();
+  for (const item of items) {
+    const key = keyFn(item);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(item);
+  }
+  return map;
+}
+
+function render(data) {
+  document.getElementById('updated-at').textContent = data.updated_at;
+  document.getElementById('total-count').textContent = data.total.toLocaleString() + '대';
+
+  // 30분 넘게 안 갱신됐으면 경고 표시
+  const updated = new Date(data.updated_at.replace(' ', 'T') + '+09:00');
+  const ageMinutes = (Date.now() - updated.getTime()) / 60000;
+  if (ageMinutes > 30) {
+    document.getElementById('stale-warning').style.display = 'inline';
+  }
+
+  const byCarrier = groupBy(data.items, r => r.telecom);
+  const sectionsEl = document.getElementById('sections');
+
+  window.__allSections = [];
+
+  for (const [carrier, rows] of byCarrier) {
+    const section = document.createElement('div');
+    section.className = 'carrier-section';
+
+    const title = document.createElement('div');
+    title.className = 'carrier-title';
+    title.innerHTML = `<span class="dot" style="background:${carrierDot(carrier)}"></span>${carrier}`;
+    section.appendChild(title);
+
+    const byModel = groupBy(rows, r => r.model);
+    const modelEls = [];
+
+    for (const [model, colorRows] of byModel) {
+      const total = colorRows.reduce((sum, r) => sum + r.count, 0);
+
+      const rowEl = document.createElement('div');
+      rowEl.className = 'model-row';
+      rowEl.dataset.model = model.toLowerCase();
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'model-name';
+      nameEl.textContent = model;
+      rowEl.appendChild(nameEl);
+
+      const chipsEl = document.createElement('div');
+      chipsEl.className = 'chips';
+      for (const cr of colorRows) {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.innerHTML = `<span class="swatch" style="background:${colorToHex(cr.color)}"></span>${cr.color} <span class="cnt">${cr.count}</span>`;
+        chipsEl.appendChild(chip);
+      }
+      rowEl.appendChild(chipsEl);
+
+      const totalEl = document.createElement('div');
+      totalEl.className = 'model-total';
+      totalEl.textContent = total + '대';
+      rowEl.appendChild(totalEl);
+
+      section.appendChild(rowEl);
+      modelEls.push(rowEl);
+    }
+
+    sectionsEl.appendChild(section);
+    window.__allSections.push({ section, modelEls });
+  }
+}
+
+function applyFilter(query) {
+  const q = query.trim().toLowerCase();
+  let anyVisible = false;
+
+  for (const { section, modelEls } of window.__allSections) {
+    let sectionHasVisible = false;
+    for (const el of modelEls) {
+      const match = !q || el.dataset.model.includes(q);
+      el.style.display = match ? '' : 'none';
+      if (match) sectionHasVisible = true;
+    }
+    section.style.display = sectionHasVisible ? '' : 'none';
+    if (sectionHasVisible) anyVisible = true;
+  }
+
+  document.getElementById('empty').style.display = anyVisible ? 'none' : 'block';
+}
+
+document.getElementById('search').addEventListener('input', e => applyFilter(e.target.value));
+
+fetch(DATA_URL, { cache: 'no-store' })
+  .then(res => res.json())
+  .then(render)
+  .catch(err => {
+    document.getElementById('sections').innerHTML =
+      '<p style="color:#B45309">재고 데이터를 불러오지 못했습니다. stock_summary.json 파일을 확인해주세요.</p>';
+    console.error(err);
+  });
+</script>
+</body>
+</html>

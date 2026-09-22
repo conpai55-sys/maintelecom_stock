@@ -1,0 +1,18 @@
+{
+  "updated_at": "2026-09-12 15:00:00",
+  "total": 6,
+  "items": [
+    {
+      "telecom": "LGT",
+      "model": "IPHONE17 256GB(UIP17-256)",
+      "color": "화이트",
+      "count": 5
+    },
+    {
+      "telecom": "LGT",
+      "model": "IPHONE17 Pro 256GB(UIP17PR-256)",
+      "color": "딥 블루",
+      "count": 1
+    }
+  ]
+}
