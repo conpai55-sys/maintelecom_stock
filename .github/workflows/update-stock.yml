@@ -2,8 +2,8 @@ name: Update Stock Dashboard
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # 15분마다 실행
-  workflow_dispatch: {}       # 수동 실행 버튼도 사용 가능
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -28,6 +28,16 @@ jobs:
           TELKIT_USER: ${{ secrets.TELKIT_USER }}
           TELKIT_PASS: ${{ secrets.TELKIT_PASS }}
         run: python login_and_fetch.py
+
+      - name: Upload debug screenshot on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: login-debug
+          path: |
+            login_debug.png
+            login_debug.html
+          if-no-files-found: ignore
 
       - name: Commit updated data
         run: |
