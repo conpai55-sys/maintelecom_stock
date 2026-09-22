@@ -23,13 +23,10 @@ from playwright.sync_api import sync_playwright
 BASE_URL = "https://utelkit.telkit.com"
 OUTPUT_FILE = "stock_summary.json"
 
-# 재고로 집계할 상태 코드. 현재는 "매장재고"(1)만 포함.
-# 다른 상태(예: 이동중, 판매완료 등)도 포함하고 싶으면 이 리스트에 추가하세요.
 INCLUDE_STATUS_CODES = {1}
 
 
 def get_session_cookies() -> dict:
-    """헤드리스 브라우저로 로그인해서 세션 쿠키를 얻는다."""
     user = os.environ.get("TELKIT_USER")
     password = os.environ.get("TELKIT_PASS")
     if not user or not password:
@@ -40,17 +37,22 @@ def get_session_cookies() -> dict:
         context = browser.new_context()
         page = context.new_page()
 
-        page.goto(BASE_URL, wait_until="networkidle")
+        try:
+            page.goto(BASE_URL, wait_until="networkidle")
 
-        # 로그인 폼: 아이디 input#input-59, 비밀번호 input#input-63, "LOGIN" 버튼
-        page.wait_for_selector("#input-59", timeout=15000)
-        page.fill("#input-59", user)
-        page.fill("#input-63", password)
-        page.click("text=LOGIN")
+            page.wait_for_selector('input[type="password"]', timeout=30000)
+            page.fill('input[type="text"]', user)
+            page.fill('input[type="password"]', password)
+            page.click("text=LOGIN")
 
-        # 로그인 후 대시보드가 뜰 때까지 대기
-        page.wait_for_load_state("networkidle", timeout=20000)
-        time.sleep(1)
+            page.wait_for_load_state("networkidle", timeout=20000)
+            time.sleep(1)
+        except Exception:
+            page.screenshot(path="login_debug.png", full_page=True)
+            with open("login_debug.html", "w", encoding="utf-8") as f:
+                f.write(page.content())
+            browser.close()
+            raise
 
         cookies = {c["name"]: c["value"] for c in context.cookies()}
         browser.close()
@@ -63,7 +65,6 @@ def get_session_cookies() -> dict:
 
 
 def fetch_all_stock(cookies: dict) -> list:
-    """재고 목록 API를 한 번에 모두 가져온다."""
     session = requests.Session()
     session.cookies.update(cookies)
     session.headers.update({
@@ -83,7 +84,7 @@ def fetch_all_stock(cookies: dict) -> list:
         ("status_code[]", 8),
         ("status_code[]", 99),
         ("useSession", 1),
-        ("itemPerPage", 1000),  # 전체를 한 번에 받기 위해 크게 설정
+        ("itemPerPage", 1000),
     ]
 
     resp = session.get(f"{BASE_URL}/api/stockList", params=params, timeout=30)
@@ -93,7 +94,6 @@ def fetch_all_stock(cookies: dict) -> list:
 
 
 def aggregate(items: list) -> list:
-    """모델 x 통신사 x 색상 별 수량 집계 (지정된 status_code만 포함)."""
     counts = defaultdict(int)
 
     for item in items:
